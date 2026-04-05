@@ -13,8 +13,8 @@ else:
     st.error("חסר מפתח API של גוגל ב-Secrets.")
     st.stop()
 
-# כאן בוצע התיקון - שימוש בגרסה העדכנית ביותר של המודל
-model = genai.GenerativeModel('gemini-1.5-pro-latest')
+# התיקון: שימוש במודל הפלאש שהוא המעודכן, המהיר והיציב ביותר כרגע
+model = genai.GenerativeModel('gemini-1.5-flash')
 
 # יצירת זיכרון לשיחה (כדי שהבוט יזכור מה דיברתם קודם)
 if "messages" not in st.session_state:
@@ -58,7 +58,7 @@ if prompt := st.chat_input("כתבי כאן הוראות, שאלות, או מה 
 
     # קבלת תשובה מג'מיני
     with st.chat_message("assistant"):
-        with st.spinner("בודק את הנתונים..."):
+        with st.spinner("מנתח את הנתונים..."):
             try:
                 response = model.generate_content(contents)
                 st.markdown(response.text)
