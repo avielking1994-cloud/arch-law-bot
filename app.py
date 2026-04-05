@@ -1,32 +1,42 @@
 import streamlit as st
-import openai
+import google.generativeai as genai
 
-# הגדרות עיצוב בסיסיות (מתאים לאדריכלות - נקי ולבן)
 st.set_page_config(page_title="עוזרת אדריכלית AI", layout="centered")
 
-st.title("🏗️ עוזרת אדריכלית חכמה")
+st.title("🏗️ עוזרת אדריכלית חכמה (Gemini)")
 st.subheader("בדיקת תוכניות מול חוקי התכנון והבנייה")
 
-# התחברות לבינה המלאכותית (את המפתח נגדיר בשלב הבא בלוח הבקרה)
-if "OPENAI_API_KEY" in st.secrets:
-    openai.api_key = st.secrets["OPENAI_API_KEY"]
+# התחברות לג'מיני - כאן המערכת קוראת את המפתח מתוך ה-Secrets
+if "GOOGLE_API_KEY" in st.secrets:
+    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 else:
-    st.error("חסר מפתח API. יש להגדיר אותו ב-Secrets של Streamlit.")
+    st.error("חסר מפתח API של גוגל ב-Secrets.")
+    st.stop()
 
-# ממשק העלאת קבצים
-uploaded_file = st.file_uploader("העלי תוכנית (PDF או תמונה)", type=["pdf", "png", "jpg", "jpeg"])
+model = genai.GenerativeModel('gemini-1.5-pro')
+
+uploaded_file = st.file_uploader("העלי תוכנית (תמונה או PDF)", type=["pdf", "png", "jpg", "jpeg"])
 
 if uploaded_file:
-    st.info("הקובץ נטען בהצלחה. המערכת מוכנה לניתוח.")
+    st.info("הקובץ נטען. המערכת מוכנה לניתוח.")
     
-    # תיבת צ'אט לשאלות
     user_question = st.text_input("מה תרצי שאבדוק בתוכנית?")
     
-    if user_question:
-        with st.spinner("מנתחת את התוכנית מול ספר החוקים..."):
-            # כאן המערכת תשלח את השאלה לבינה המלאכותית
-            # בשלב זה אני שם לך תשובה זמנית כדי שתראה שהאתר עובד
-            st.success(f"קיבלתי את השאלה: '{user_question}'. בשלב הבא נחבר את מודל ה-Vision שיודע לקרוא את השרטוט עצמו.")
+    if st.button("נתח תוכנית") and user_question:
+        with st.spinner("ג'מיני מנתח את התוכנית..."):
+            img_data = uploaded_file.read()
+            contents = [
+                "את עוזרת אדריכלית מומחית. נתחי את התוכנית המצורפת ועני על השאלה בהתאם לחוקי התכנון והבנייה בישראל.",
+                user_question,
+                {"mime_type": uploaded_file.type, "data": img_data}
+            ]
+            
+            try:
+                response = model.generate_content(contents)
+                st.markdown("### תוצאות הבדיקה:")
+                st.write(response.text)
+            except Exception as e:
+                st.error(f"שגיאה בניתוח: {e}")
 
 st.markdown("---")
 st.caption("פותח עבור אשתי האדריכלית ❤️")
