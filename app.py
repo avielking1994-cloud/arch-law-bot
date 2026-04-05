@@ -1,12 +1,12 @@
 import streamlit as st
 import google.generativeai as genai
 
-st.set_page_config(page_title="עוזרת אדריכלית AI", layout="centered")
+st.set_page_config(page_title="עוזרת אדריכלית AI", layout="wide")
 
-st.title("🏗️ עוזרת אדריכלית חכמה (Gemini)")
-st.subheader("בדיקת תוכניות מול חוקי התכנון והבנייה")
+st.title("🏗️ הצ'אט האדריכלי")
+st.subheader("העלי תוכנית בצד, וכתבי לי למטה מה לבדוק")
 
-# התחברות לג'מיני - כאן המערכת קוראת את המפתח מתוך ה-Secrets
+# התחברות לג'מיני
 if "GOOGLE_API_KEY" in st.secrets:
     genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
 else:
@@ -15,28 +15,53 @@ else:
 
 model = genai.GenerativeModel('gemini-1.5-pro')
 
-uploaded_file = st.file_uploader("העלי תוכנית (תמונה או PDF)", type=["pdf", "png", "jpg", "jpeg"])
+# יצירת זיכרון לשיחה (כדי שהבוט יזכור מה דיברתם קודם)
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
-if uploaded_file:
-    st.info("הקובץ נטען. המערכת מוכנה לניתוח.")
+# סרגל צד להעלאת קבצים
+with st.sidebar:
+    st.header("📂 קבצי הפרויקט")
+    uploaded_file = st.file_uploader("העלי תוכנית (תמונה או PDF)", type=["pdf", "png", "jpg", "jpeg"])
     
-    user_question = st.text_input("מה תרצי שאבדוק בתוכנית?")
+    if uploaded_file:
+        st.success("הקובץ נטען ומוכן לעבודה!")
+        # שמירת הקובץ בזיכרון של האפליקציה
+        st.session_state.file_data = uploaded_file.getvalue()
+        st.session_state.file_type = uploaded_file.type
+
+# הצגת היסטוריית השיחה על המסך
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
+
+# שורת ההקלטה למטה (כמו בוואטסאפ או ChatGPT)
+if prompt := st.chat_input("כתבי כאן הוראות, שאלות, או מה תרצי שאבדוק..."):
+    # הוספת השאלה של המשתמשת למסך
+    with st.chat_message("user"):
+        st.markdown(prompt)
+    st.session_state.messages.append({"role": "user", "content": prompt})
+
+    # הכנת החומרים לבינה המלאכותית
+    contents = [
+        "את עוזרת אדריכלית מומחית. תמיד תעני במקצועיות, באופן ברור, ובהתאם לחוקי התכנון והבנייה בישראל."
+    ]
     
-    if st.button("נתח תוכנית") and user_question:
-        with st.spinner("ג'מיני מנתח את התוכנית..."):
-            img_data = uploaded_file.read()
-            contents = [
-                "את עוזרת אדריכלית מומחית. נתחי את התוכנית המצורפת ועני על השאלה בהתאם לחוקי התכנון והבנייה בישראל.",
-                user_question,
-                {"mime_type": uploaded_file.type, "data": img_data}
-            ]
-            
+    # הוספת היסטוריית השיחה כדי שיזכור הקשר
+    for msg in st.session_state.messages:
+        contents.append(f"{msg['role']}: {msg['content']}")
+        
+    # אם הועלה קובץ, אנחנו מצרפים אותו לבקשה מאחורי הקלעים
+    if "file_data" in st.session_state:
+        contents.append({"mime_type": st.session_state.file_type, "data": st.session_state.file_data})
+
+    # קבלת תשובה מג'מיני
+    with st.chat_message("assistant"):
+        with st.spinner("בודק את הנתונים..."):
             try:
                 response = model.generate_content(contents)
-                st.markdown("### תוצאות הבדיקה:")
-                st.write(response.text)
+                st.markdown(response.text)
+                # שמירת התשובה בזיכרון
+                st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                st.error(f"שגיאה בניתוח: {e}")
-
-st.markdown("---")
-st.caption("פותח עבור אשתי האדריכלית ❤️")
+                st.error(f"קרתה תקלה: {e}")
