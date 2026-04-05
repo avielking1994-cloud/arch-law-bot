@@ -13,7 +13,8 @@ else:
     st.error("חסר מפתח API של גוגל ב-Secrets.")
     st.stop()
 
-model = genai.GenerativeModel('gemini-1.5-pro')
+# כאן בוצע התיקון - שימוש בגרסה העדכנית ביותר של המודל
+model = genai.GenerativeModel('gemini-1.5-pro-latest')
 
 # יצירת זיכרון לשיחה (כדי שהבוט יזכור מה דיברתם קודם)
 if "messages" not in st.session_state:
