@@ -4,7 +4,6 @@ import google.generativeai as genai
 st.set_page_config(page_title="עוזרת אדריכלית AI", layout="wide")
 
 st.title("🏗️ הצ'אט האדריכלי")
-st.subheader("העלי תוכנית בצד, וכתבי לי למטה מה לבדוק")
 
 # התחברות
 if "GOOGLE_API_KEY" in st.secrets:
@@ -13,12 +12,26 @@ else:
     st.error("חסר מפתח API של גוגל ב-Secrets.")
     st.stop()
 
-# שימוש במודל הפלאש החדיש
-model = genai.GenerativeModel('gemini-1.5-flash')
+# 1. משיכת רשימת המודלים שזמינים למפתח שלך
+try:
+    available_models = [m.name for m in genai.list_models() if 'generateContent' in m.supported_generation_methods]
+    
+    if not available_models:
+        st.error("המפתח תקין, אבל גוגל לא נותנת לו גישה לאף מודל. ייתכן ויש בעיה בחשבון ה-Google AI Studio שלך.")
+        st.stop()
+        
+    # 2. בחירה אוטומטית של המודל הראשון שזמין (מסירים את המילה 'models/' כדי למנוע שגיאות)
+    best_model = available_models[0].replace('models/', '')
+    
+    # הצגת הודעה קטנה למעלה כדי שתדע איזה מודל נבחר
+    st.success(f"מחובר בהצלחה למודל: {best_model}")
+    
+    # 3. הגדרת המודל
+    model = genai.GenerativeModel(best_model)
 
-# זיכרון שיחה
-if "messages" not in st.session_state:
-    st.session_state.messages = []
+except Exception as e:
+    st.error(f"שגיאה בטעינת המודלים: {e}")
+    st.stop()
 
 # סרגל צד להעלאת תוכנית
 with st.sidebar:
@@ -29,6 +42,10 @@ with st.sidebar:
         st.success("הקובץ נטען ומוכן לעבודה!")
         st.session_state.file_data = uploaded_file.getvalue()
         st.session_state.file_type = uploaded_file.type
+
+# זיכרון שיחה
+if "messages" not in st.session_state:
+    st.session_state.messages = []
 
 # הצגת השיחה
 for message in st.session_state.messages:
@@ -41,23 +58,21 @@ if prompt := st.chat_input("כתבי כאן הוראות, שאלות, או מה 
         st.markdown(prompt)
     st.session_state.messages.append({"role": "user", "content": prompt})
 
-    # בניית הבקשה לג'מיני בצורה תקנית
+    # בניית הבקשה
     contents = []
     
-    # הוספת הקובץ אם קיים
     if "file_data" in st.session_state:
         contents.append({"mime_type": st.session_state.file_type, "data": st.session_state.file_data})
         
-    # הוספת ההנחיות והשאלה
-    prompt_text = f"הנחיית מערכת: את עוזרת אדריכלית מומחית. תמיד תעני במקצועיות, באופן ברור, ובהתאם לחוקי התכנון והבנייה בישראל.\n\nשאלת המשתמש: {prompt}"
+    prompt_text = f"הנחיית מערכת: את עוזרת אדריכלית מומחית. תמיד תעני במקצועיות ובהתאם לחוקי התכנון והבנייה בישראל.\n\nשאלת המשתמש: {prompt}"
     contents.append(prompt_text)
 
     # פנייה למודל
     with st.chat_message("assistant"):
-        with st.spinner("מנתח את התוכנית מול חוקי הבנייה..."):
+        with st.spinner("מנתח את התוכנית..."):
             try:
                 response = model.generate_content(contents)
                 st.markdown(response.text)
                 st.session_state.messages.append({"role": "assistant", "content": response.text})
             except Exception as e:
-                st.error(f"שגיאה: {e}")
+                st.error(f"שגיאה בניתוח התוכן: {e}")
